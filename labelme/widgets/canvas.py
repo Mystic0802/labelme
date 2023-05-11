@@ -6,7 +6,6 @@ from labelme import QT5
 from labelme.shape import Shape
 import labelme.utils
 
-
 # TODO(unknown):
 # - [maybe] Find optimal epsilon value.
 
@@ -21,7 +20,6 @@ MOVE_SPEED = 5.0
 
 
 class Canvas(QtWidgets.QWidget):
-
     zoomRequest = QtCore.Signal(int, QtCore.QPoint)
     scrollRequest = QtCore.Signal(int, int)
     newShape = QtCore.Signal()
@@ -29,6 +27,7 @@ class Canvas(QtWidgets.QWidget):
     shapeMoved = QtCore.Signal()
     drawingPolygon = QtCore.Signal(bool)
     vertexSelected = QtCore.Signal(bool)
+    highlightShapes = QtCore.Signal(list)
 
     CREATE, EDIT = 0, 1
 
@@ -98,6 +97,7 @@ class Canvas(QtWidgets.QWidget):
         # Set widget options.
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.WheelFocus)
+        self.hidePolyCreating = False
 
     def fillDrawing(self):
         return self._fill_drawing
@@ -127,7 +127,7 @@ class Canvas(QtWidgets.QWidget):
         for shape in self.shapes:
             shapesBackup.append(shape.copy())
         if len(self.shapesBackups) > self.num_backups:
-            self.shapesBackups = self.shapesBackups[-self.num_backups - 1 :]
+            self.shapesBackups = self.shapesBackups[-self.num_backups - 1:]
         self.shapesBackups.append(shapesBackup)
 
     @property
@@ -227,10 +227,10 @@ class Canvas(QtWidgets.QWidget):
                 # Project the point to the pixmap's edges.
                 pos = self.intersectionPoint(self.current[-1], pos)
             elif (
-                self.snapping
-                and len(self.current) > 1
-                and self.createMode == "polygon"
-                and self.closeEnough(pos, self.current[0])
+                    self.snapping
+                    and len(self.current) > 1
+                    and self.createMode == "polygon"
+                    and self.closeEnough(pos, self.current[0])
             ):
                 # Attract line to starting point and
                 # colorise to alert the user.
@@ -385,9 +385,10 @@ class Canvas(QtWidgets.QWidget):
                             self.finalise()
                 elif not self.outOfPixmap(pos):
                     # Create new shape.
-                    for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
-                        self.setShapeVisible(shape, False)
-                    
+                    if self.hidePolyCreating:
+                        for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
+                            self.setShapeVisible(shape, False)
+
                     self.current = Shape(shape_type=self.createMode)
                     self.current.addPoint(pos)
                     if self.createMode == "point":
@@ -403,8 +404,8 @@ class Canvas(QtWidgets.QWidget):
                 if self.selectedEdge():
                     self.addPointToEdge()
                 elif (
-                    self.selectedVertex()
-                    and int(ev.modifiers()) == QtCore.Qt.ShiftModifier
+                        self.selectedVertex()
+                        and int(ev.modifiers()) == QtCore.Qt.ShiftModifier
                 ):
                     # Delete point if: left-click + SHIFT on a point
                     self.removeSelectedPoint()
@@ -416,8 +417,8 @@ class Canvas(QtWidgets.QWidget):
         elif ev.button() == QtCore.Qt.RightButton and self.editing():
             group_mode = int(ev.modifiers()) == QtCore.Qt.ControlModifier
             if not self.selectedShapes or (
-                self.hShape is not None
-                and self.hShape not in self.selectedShapes
+                    self.hShape is not None
+                    and self.hShape not in self.selectedShapes
             ):
                 self.selectShapePoint(pos, multiple_selection_mode=group_mode)
                 self.repaint()
@@ -428,8 +429,8 @@ class Canvas(QtWidgets.QWidget):
             menu = self.menus[len(self.selectedShapesCopy) > 0]
             self.restoreCursor()
             if (
-                not menu.exec_(self.mapToGlobal(ev.pos()))
-                and self.selectedShapesCopy
+                    not menu.exec_(self.mapToGlobal(ev.pos()))
+                    and self.selectedShapesCopy
             ):
                 # Cancel the move by deleting the shadow copy.
                 self.selectedShapesCopy = []
@@ -437,9 +438,9 @@ class Canvas(QtWidgets.QWidget):
         elif ev.button() == QtCore.Qt.LeftButton:
             if self.editing():
                 if (
-                    self.hShape is not None
-                    and self.hShapeIsSelected
-                    and not self.movingShape
+                        self.hShape is not None
+                        and self.hShapeIsSelected
+                        and not self.movingShape
                 ):
                     self.selectionChanged.emit(
                         [x for x in self.selectedShapes if x != self.hShape]
@@ -448,8 +449,8 @@ class Canvas(QtWidgets.QWidget):
         if self.movingShape and self.hShape:
             index = self.shapes.index(self.hShape)
             if (
-                self.shapesBackups[-1][index].points
-                != self.shapes[index].points
+                    self.shapesBackups[-1][index].points
+                    != self.shapes[index].points
             ):
                 self.storeShapes()
                 self.shapeMoved.emit()
@@ -490,9 +491,9 @@ class Canvas(QtWidgets.QWidget):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
         if (
-            self.double_click == "close"
-            and self.canCloseShape()
-            and len(self.current) > 3
+                self.double_click == "close"
+                and self.canCloseShape()
+                and len(self.current) > 3
         ):
             self.current.popPoint()
             self.finalise()
@@ -639,10 +640,10 @@ class Canvas(QtWidgets.QWidget):
 
         # draw crosshair
         if (
-            self._crosshair[self._createMode]
-            and self.drawing()
-            and self.prevMovePoint
-            and not self.outOfPixmap(self.prevMovePoint)
+                self._crosshair[self._createMode]
+                and self.drawing()
+                and self.prevMovePoint
+                and not self.outOfPixmap(self.prevMovePoint)
         ):
             p.setPen(QtGui.QColor(0, 0, 0))
             p.drawLine(
@@ -661,7 +662,7 @@ class Canvas(QtWidgets.QWidget):
         Shape.scale = self.scale
         for shape in self.shapes:
             if (shape.selected or not self._hideBackround) and self.isVisible(
-                shape
+                    shape
             ):
                 shape.fill = shape.selected or shape == self.hShape
                 shape.paint(p)
@@ -673,10 +674,10 @@ class Canvas(QtWidgets.QWidget):
                 s.paint(p)
 
         if (
-            self.fillDrawing()
-            and self.createMode == "polygon"
-            and self.current is not None
-            and len(self.current.points) >= 2
+                self.fillDrawing()
+                and self.createMode == "polygon"
+                and self.current is not None
+                and len(self.current.points) >= 2
         ):
             drawing_shape = self.current.copy()
             drawing_shape.addPoint(self.line[1])
@@ -706,16 +707,19 @@ class Canvas(QtWidgets.QWidget):
         for shape in reversed([s for s in self.shapes if not self.isVisible(s)]):
             self.setShapeVisible(shape, True)
 
-        # Add Code here to check for outlier and to alter the shape.
-
-
         assert self.current
+
         self.current.close()
         self.shapes.append(self.current)
         self.storeShapes()
-        self.current = None
         self.setHiding(False)
         self.newShape.emit()
+        for shape in self.shapes:
+            if shape != self.current:
+                for point in self.current.points:
+                    if shape.containsPoint(point):
+                        self.highlightShapes.emit([self.current])
+        self.current = None
         self.update()
 
     def closeEnough(self, p1, p2):
@@ -858,8 +862,8 @@ class Canvas(QtWidgets.QWidget):
             if self.movingShape and self.selectedShapes:
                 index = self.shapes.index(self.selectedShapes[0])
                 if (
-                    self.shapesBackups[-1][index].points
-                    != self.shapes[index].points
+                        self.shapesBackups[-1][index].points
+                        != self.shapes[index].points
                 ):
                     self.storeShapes()
                     self.shapeMoved.emit()

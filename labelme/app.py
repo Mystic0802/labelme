@@ -172,6 +172,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.shapeMoved.connect(self.setDirty)
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
+        self.canvas.highlightShapes.connect(self.highlightShapes)
 
         self.setCentralWidget(scrollArea)
 
@@ -1974,6 +1975,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def hidePolysWhenCreating(self):
         self._config["hide_polys"] = not self._config["hide_polys"]
+        self.canvas.hidePolyCreating = self._config["hide_polys"]
 
     def removeSelectedPoint(self):
         self.canvas.removeSelectedPoint()
@@ -2166,7 +2168,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if findItem[0]:
                 self.highlightList.removeItem(findItem[1])
             else:
-                logger.info("Shape " + shape.label + " was not found")
+                #logger.info("Shape " + shape.label + " was not found")
                 itemThing = LabelListWidgetItem(shape.label, shape)
                 self.highlightList.addItem(itemThing)
 
